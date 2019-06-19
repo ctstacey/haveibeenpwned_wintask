@@ -22,7 +22,8 @@ from io import TextIOWrapper
 #=========================================================================
 
 # CONSTANTS
-API               = 'https://api.haveibeenpwned.com/unifiedsearch/'
+API               = 'https://haveibeenpwned.com/api/v2/breachedaccount/'
+PARAMETERS        = '?includeUnverified=true'
 FILENAME          = 'emails_to_check.csv'
 CSV_FIRST_ROW     = ['email', 'date_last_pwned']
 CSV_FIRST_ROW_STR = 'email,date_last_pwned'            # see CSV_FIRST_ROW
@@ -321,12 +322,12 @@ def get_most_recent_breach_date(http_json_response) -> str:
   ''' relies on USA dates (ie yyyy-mm-dd) so it sorts as expected
   '''
   
-  # load (string) json into Python as a dictionary
+  # load (byte string) json into Python as a dictionary
   dict_of_json = json.loads(http_json_response)
-
+  
   breach_dates = []
-  for elem in dict_of_json['Breaches']:
-    breach_dates.append(elem['BreachDate'])
+  for breach in dict_of_json:
+    breach_dates.append(breach['BreachDate'])
 
   l.debug(F'all breach dates (sorted):\n{sorted(breach_dates)}')
 
@@ -368,10 +369,10 @@ def try_open_csv(filepath, mode='r') -> TextIOWrapper:
 def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
   '''
   will only read 200000 characters (~20KB file)
-  returns: string containing HTTP response body
+  returns: BYTE string containing HTTP response body.
   quits with user message if things go wrong.
 
-  Two second delay added after each API access.
+  Three second delay added after each API access.
   (haveibeenpwned.com limits API access to once per 1500ms)
   '''
   assert(type(valid_email) == str)
@@ -380,7 +381,7 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
   # haveibeenpwned.com limits API requests to one every 1500ms.
   time.sleep(3)
 
-  url = API + valid_email
+  url = API + valid_email + PARAMETERS
 
   try:
     req = urllib.request.Request(url    = url
@@ -390,14 +391,12 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
     # haveibeenpwned.com API requires a User-Agent header.
     req.add_header('User-Agent', 'basic-pwnage-check')
 
-#    GET https://haveibeenpwned.com/api/{service}/{parameter}
-#    User-Agent: Pwnage-Checker-For-iOS
+    r = urllib.request.urlopen(req)
 
-    f = urllib.request.urlopen(req)
+    print(F'recieved HTTP response: {r.status} {r.reason}')     #ie 200 OK
 
-    print(F'recieved HTTP response: {f.status} {f.reason}')     #ie 200 OK
-
-    data = f.read(200000)
+    # byte string to string
+    data = r.read(200000)
 
     if len(data) > 199999:             #test that entire download was read
       print('LIMIT EXCEEDED: FILE RETURNED WAS TOO LARGE.\nExiting now.')
@@ -412,6 +411,7 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
       return None                                        # no pwnage found
     else:
       raise e
+  
   except:
     print(F'Error while trying to send HTTP GET request to "{url}".'
            ' Check internet connection and try again.')
@@ -419,7 +419,7 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
     raise SystemExit
 
   #exit if download did not come from the url specified in this script
-  if f.geturl() != url:
+  if r.geturl() != url:
     print('source information appears to have come from another url than'
           ' was specified in the script. This could be because of an'
           ' innocent redirect was used (server side), or because of other'
