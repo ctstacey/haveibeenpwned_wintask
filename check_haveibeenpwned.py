@@ -378,7 +378,7 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
   print(F'querying haveibeenpwned.com regarding {valid_email}')
 
   # haveibeenpwned.com limits API requests to one every 1500ms.
-  time.sleep(2)
+  time.sleep(3)
 
   url = API + valid_email
 
