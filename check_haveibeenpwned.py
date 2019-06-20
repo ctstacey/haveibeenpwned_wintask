@@ -395,7 +395,7 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
 
     print(F'recieved HTTP response: {r.status} {r.reason}')     #ie 200 OK
 
-    # byte string to string
+    # byte string
     data = r.read(200000)
 
     if len(data) > 199999:             #test that entire download was read
