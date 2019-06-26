@@ -95,7 +95,7 @@ def open_haveibeenpwned_using_selenium(email) -> bool:
     driver.get('https://haveibeenpwned.com/')
     assert 'Have I Been Pwned' in driver.title
 
-    elem = driver.find_element_by_id('Account')    # Find the search box
+    elem = driver.find_element_by_id('Account')      # Find the search box
     elem.send_keys(email + Keys.RETURN)
 
     _elem = WebDriverWait(driver, 120).until(
@@ -141,9 +141,9 @@ def open_haveibeenpwned_using_selenium(email) -> bool:
 
 
 def get_chrome_or_firefox_webdriver():
-  ''' if successful in getting a Chrome WebDriver, there will be an
+  ''' Note: If successful getting a *Chrome* WebDriver, there will be an
       instance of 'chromedriver.exe' that remains open in the task manager
-      (windowsOS) even after python ends and the user closes the browser
+      (Windows OS) even after python ends and the user closes the browser
       window. This happens because 'driver' is declared as global and is
       still in scope when python finishes. This was the only way to keep
       the (Chrome) browser window open after the script had ended.
@@ -151,29 +151,48 @@ def get_chrome_or_firefox_webdriver():
   '''
 
   global driver
-  if not driver:
-    try:                              # to get a chrome webdriver instance
-      #after much trying, could not get selenium to pass on chrome options
-      #to supress debug output from chromedriver being printed to console
-      options = webdriver.ChromeOptions()
-      options.add_argument("start-maximized")
-      #removes msg 'Chrome is being controlled by automated test software'
-      options.add_argument('disable-infobars')
 
+  if driver:
+    return driver
+  else:
+    
+    try:                                      # firefox webdriver instance
+      driver = webdriver.Firefox(
+        executable_path='webdrivers/geckodriver(win64,Jan2019).exe')
+      return driver
+    except:
+      pass
+
+    #after much trying, I could not get selenium to pass on chrome options
+    #to supress debug output from chromedriver being printed to console
+    options = webdriver.ChromeOptions()
+    options.add_argument("start-maximized")
+    #removes msg 'Chrome is being controlled by automated test software'
+    options.add_argument('disable-infobars')
+    
+    try:                    # chrome webdriver instance current at Jan2019
       driver = webdriver.Chrome \
         (options=options
-        ,executable_path='webdrivers/chromedriver.exe'
+        ,executable_path='webdrivers/chromedriver(win64,Jan2019).exe'
         #overwrites log each time driver starts
         ,service_log_path='webdrivers/chromedriver.log'
         )
+      return driver
     except:
-      try:                           # to get a firefox webdriver instance
-        driver = webdriver.Firefox(
-          executable_path='webdrivers/chromedriver.exe')
-      except:
-        pass                                              # driver == None
-  return driver
+      pass
+    
+    try:                    # chrome webdriver instance current at Jun2019
+      driver = webdriver.Chrome \
+        (options=options
+        ,executable_path='webdrivers/chromedriver(win32,25Jun2019).exe'
+        #overwrites log each time driver starts
+        ,service_log_path='webdrivers/chromedriver.log'
+        )
+      return driver
+    except:
+      pass    
 
+    return driver
 
 
 def write_new_csv(filename, new_csv_list):
