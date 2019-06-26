@@ -74,24 +74,11 @@ def main() -> None:
 
 def open_haveibeenpwned_using_selenium(email) -> bool:
 
-  # A warning message is output in the top browser window so the user
-  # knows the security settings used when Selenium opens a browser may
-  # be different from their normal settings. This is important because
-  # the user might be inclined to open a new tab and continue browsing
-  # while being unaware (no visible difference) that the settings differ.
-  #
-  # In Firefox the address bar looks different, but the user still
-  # wouldn't know the security settings are different.
-  #
-  # I first tried to do this with a simple 'javascript alert/confirm box'
-  # but the box disappeared after a short time, defeating the purpose.
-
-
   driver = get_chrome_or_firefox_webdriver()
 
   try:
     # if driver == None, exception is raised
-
+    
     driver.get('https://haveibeenpwned.com/')
     assert 'Have I Been Pwned' in driver.title
 
@@ -102,42 +89,12 @@ def open_haveibeenpwned_using_selenium(email) -> bool:
       EC.presence_of_element_located((By.ID, 'breachDescription'))
     )
 
-    driver.execute_script(
-      '''
-      var win2 = window.open("")                           // blank window
-
-      win2.document.head.outerHTML =
-        ("<head>"
-        + "<title>README</title>"
-        +"</head>"
-        );
-
-      win2.document.body.outerHTML =
-        ("<body>"
-        + "<strong>"
-        +  "<h1>WARNING:</h1>"
-        +  "<p><em>This</em> browser window is probably using different"
-        +  " security settings than you normally use.</p>"
-        +  "<p>For your own safety please close it immediately after you"
-        +  " have reviewed the information from www.haveibeenpwned.com"
-        +  "<br>"
-        +  " (so you don't accidentally continue browsing using"
-        +  " different security settings than normal).</p>"
-        +  "<p>Have a good day and stay safe!</p>"
-        + "</strong>"
-        +"</body>"
-        );
-
-      '''
-    )
-
     return True
 
   except:
     print('opening and checking of haveibeenpwned.com failed')
 
     return False
-
 
 
 def get_chrome_or_firefox_webdriver():
@@ -193,6 +150,51 @@ def get_chrome_or_firefox_webdriver():
       pass    
 
     return driver
+
+
+def add_brower_tab_with_security_warning_using_selenium() -> None:
+
+  # A warning message is output in the top browser window so the user
+  # knows the security settings used when Selenium opens a browser may
+  # be different from their normal settings. This is important because
+  # the user might be inclined to open a new tab and continue browsing
+  # while being unaware (no visible difference) that the settings differ.
+  #
+  # In Firefox the address bar looks different, but the user still
+  # wouldn't know the security settings are different.
+  #
+  # I first tried to do this with a simple 'javascript alert/confirm box'
+  # but the box disappeared after a short time, defeating the purpose.
+
+  if driver:
+    driver.execute_script(
+      '''
+      var win2 = window.open("")                           // blank window
+
+      win2.document.head.outerHTML =
+        ("<head>"
+        + "<title>README</title>"
+        +"</head>"
+        );
+
+      win2.document.body.outerHTML =
+        ("<body>"
+        + "<strong>"
+        +  "<h1>WARNING:</h1>"
+        +  "<p><em>This</em> browser window is probably using different"
+        +  " security settings than you normally use.</p>"
+        +  "<p>For your own safety please close it immediately after you"
+        +  " have reviewed the information from www.haveibeenpwned.com"
+        +  "<br>"
+        +  " (so you don't accidentally continue browsing using"
+        +  " different security settings than normal).</p>"
+        +  "<p>Have a good day and stay safe!</p>"
+        + "</strong>"
+        +"</body>"
+        );
+
+      '''
+    )
 
 
 def write_new_csv(filename, new_csv_list):
@@ -316,6 +318,8 @@ def process_csv_content(csv_content) -> list:
                , sep = '\n'
                )
 
+  add_brower_tab_with_security_warning_using_selenium()
+          
   # returns a list (ready to be written to csv file by csv.writer)
   return newcsv
 
