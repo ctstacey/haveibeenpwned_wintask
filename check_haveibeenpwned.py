@@ -30,11 +30,10 @@ CSV_FIRST_ROW_STR = 'email,date_last_pwned'            # see CSV_FIRST_ROW
 
 
 # global VARIABLES
-driver = None
+pwndObj = None
 pwnage_summary = '\n\n' + \
                  '-'*76 + \
                  '\nSUMMARY:  all info from haveibeenpwned.com\n\n'
-new_pwnage = False
 
   #-----------------------------------------------------------------------
   # SET DEBUG OUTPUT LEVEL
@@ -49,6 +48,196 @@ new_pwnage = False
 #l.basicConfig(format='%(levelname)s: %(message)s', level=l.DEBUG)
 l.basicConfig(format='%(levelname)s: %(message)s', level=l.INFO)
 
+#=========================================================================
+# CLASS for opening browser using selenium
+#=========================================================================
+
+class SearchPwndAccountInBrowser:
+  
+  new_pwnage = False
+  
+  _driver = None
+  _pwned_accounts = []
+
+  def __init__(self):
+    pass
+
+  def add_valid_email(self, valid_email) -> None:
+    assert(type(valid_email) == str)
+
+    self._pwned_accounts.append(valid_email)
+
+  def get_driver(s) -> selenium.webdriver:
+    ''' Note: If successful getting a *Chrome* WebDriver, there will be
+        an instance of 'chromedriver.exe' that remains open in the task
+        manager (Windows OS) even after python ends and the user closes
+        the browser window. This happens because 'driver' is declared as
+        global and is still in scope when python finishes. This was the
+        only way to keep the (Chrome) browser window open after the
+        script had ended. Firefox does not have this problem.'''
+
+    if s._driver:
+      return s._driver
+    else:
+    
+      # try firefox
+
+      try:                                    # firefox webdriver instance
+        s._driver = webdriver.Firefox(
+          executable_path = 'webdrivers/geckodriver(win64,Jan2019).exe')
+        return s._driver
+      except:
+        pass
+
+      # try chrome
+
+      #after much trying, I could not get selenium to pass on chrome options
+      #to supress debug output from chromedriver being printed to console
+      options = webdriver.ChromeOptions()
+      options.add_argument("start-maximized")
+      #removes msg 'Chrome is being controlled by automated test software'
+      options.add_argument('disable-infobars')
+      
+      #overwrites log each time driver starts
+      service_log_path = 'webdrivers/chromedriver.log'
+      
+      try:                  # chrome webdriver instance current at Jan2019
+        s._driver = webdriver.Chrome \
+          (options          = options
+          ,executable_path  = 'webdrivers/chromedriver(win64,Jan2019).exe'
+          ,service_log_path = service_log_path
+          )
+        return s._driver
+      except:
+        pass
+    
+      try:                  # chrome webdriver instance current at Jun2019
+        s._driver = webdriver.Chrome \
+          (options          = options
+          ,executable_path  = 'webdrivers/chromedriver(win32,Jun2019).exe'
+          ,service_log_path = service_log_path
+          )
+        return s._driver
+      except:
+        pass    
+
+      return s._driver
+
+
+  def try_seach_pwnd_accounts_in_browser(s) -> None:
+    
+    if (s.new_pwnage and s.get_driver()):
+      try:
+      
+        last = len(s._pwned_accounts)
+        
+        for i in range(last):
+          
+          s._driver.get('https://haveibeenpwned.com/')
+          assert 'Have I Been Pwned' in s._driver.title
+
+          elem = s._driver.find_element_by_id('Account')    # search field
+          elem.send_keys(s._pwned_accounts[i] + Keys.RETURN)
+
+          _elem = WebDriverWait(s._driver, 120).until(
+            EC.presence_of_element_located((By.ID, 'breachDescription'))
+          )
+          
+          if i+1 != last:
+            
+            # JavaScript cannot control whether a new tab, vs window, gets
+            # created. This behaviour is controlled by browser settings.
+            # https://stackoverflow.com/questions/4907843/open-a-url-in-
+            # a-new-tab-and-not-a-new-window-using-javascript
+
+            w = 'windowName' + str(i+2)
+            s._driver.execute_script(f'var _win = window.open("", "{w}")')
+            s._driver.switch_to.window(w)
+
+            #s._driver.current_window_handle
+            #s._driver.window_handles
+        
+        s.add_brower_tab_with_security_warning()
+        
+        print("Browser should now show one tab/window per pwned account")
+    
+        a = 1/0
+
+      except:
+        
+        #re-write this code so it creates
+        #* account1@hotmail.com
+        #* account2@gmail.com
+
+        #def prefix_lines(pre, iterable):
+        #  it = iter(iterable)
+        #  r = []
+        #  for x in iterable:
+        #    r."* " +
+        #  yield 
+        #  yield next(it)
+        #  for x in it:
+        #      yield delimiter
+        #      yield x
+
+        #s._pwned_accounts.
+        
+        print('*' * 76
+             ,"* The program wasn't able to complete searching for you"
+             ,"* Please search these acounts in www.haveibeenpwned.com"
+             ,"* " + "\n* ".join(s._pwned_accounts)
+             ,'*' * 76
+             ,sep = '\n'
+             ,flush = True
+             )
+
+      
+  def add_brower_tab_with_security_warning(s) -> None:
+    '''Output a msg to a new tab/window warning the user not to use these
+       window(s) for further browsing as the security settings are likely
+       to be different than they normally use. (selenium opens the browser
+       in a tesing mode, which is similar visually, but settings differ)
+    '''
+    # Tried to implement this using a 'javascript alert/confirm box'
+    # but the box disappeared after a short time, defeating the purpose.
+
+    if s._driver:
+
+      # JavaScript cannot control whether a new tab, vs window, gets
+      # created. This behaviour is controlled by browser settings. 
+      # https://stackoverflow.com/questions/4907843/open-a-url-in-
+      # a-new-tab-and-not-a-new-window-using-javascript
+      
+      s._driver.execute_script(
+        '''
+        var newWin = window.open("")                // blank tab or window
+
+        newWin.document.head.outerHTML =
+          ("<head>"
+          + "<title>README</title>"
+          +"</head>"
+          );
+
+        newWin.document.body.outerHTML =
+          ("<body>"
+          + "<strong>"
+          +  "<h1>WARNING:</h1>"
+          +  "<p>The browser window(s) just opened are likely to be using"
+          +  " different security settings than you normally use.</p>"
+          +  "<p>For your own safety, please close the window(s)"
+          +  " immediately after you have reviewed the information"
+          +  " gathered from www.haveibeenpwned.com"
+          +  "<br>"
+          +  " (so you don't accidentally continue browsing using"
+          +  " different security settings than you normally use).</p>"
+          +  "<p>Have a good day and stay safe!</p>"
+          + "</strong>"
+          +"</body>"
+          );
+
+        '''
+      )
+
 
 #=========================================================================
 # MAIN
@@ -56,6 +245,9 @@ l.basicConfig(format='%(levelname)s: %(message)s', level=l.INFO)
 
 def main() -> None:
 
+  global pwndObj
+  pwndObj = SearchPwndAccountInBrowser()
+  
   print(F'Checking all emails in {FILENAME} using haveibeenpwned.com')
   
   csv_content = get_csv_content(FILENAME)
@@ -64,137 +256,14 @@ def main() -> None:
 
   write_new_csv(FILENAME, new_csv_list)
 
+  pwndObj.try_seach_pwnd_accounts_in_browser()
+
   print(F'{pwnage_summary}')
 
-  print('\nSCRIPT COMPLETED SUCCESSFULLY\n', flush=True)
+  print('\nSCRIPT COMPLETED SUCCESSFULLY\n\n'
+       +'BUT NEW PWNAGE WAS DETECTED!!!\n' if pwndObj.new_pwnage else '' 
+       ,flush=True)
 
-  if new_pwnage:
-    print('BUT NEW PWNAGE WAS DETECTED!!!\n', flush=True)
-
-
-def open_haveibeenpwned_using_selenium(email) -> bool:
-
-  driver = get_chrome_or_firefox_webdriver()
-
-  try:
-    # if driver == None, exception is raised
-    
-    driver.get('https://haveibeenpwned.com/')
-    assert 'Have I Been Pwned' in driver.title
-
-    elem = driver.find_element_by_id('Account')      # Find the search box
-    elem.send_keys(email + Keys.RETURN)
-
-    _elem = WebDriverWait(driver, 120).until(
-      EC.presence_of_element_located((By.ID, 'breachDescription'))
-    )
-
-    return True
-
-  except:
-    print('opening and checking of haveibeenpwned.com failed')
-
-    return False
-
-
-def get_chrome_or_firefox_webdriver():
-  ''' Note: If successful getting a *Chrome* WebDriver, there will be an
-      instance of 'chromedriver.exe' that remains open in the task manager
-      (Windows OS) even after python ends and the user closes the browser
-      window. This happens because 'driver' is declared as global and is
-      still in scope when python finishes. This was the only way to keep
-      the (Chrome) browser window open after the script had ended.
-      Firefox does not have this problem.
-  '''
-
-  global driver
-
-  if driver:
-    return driver
-  else:
-    
-    try:                                      # firefox webdriver instance
-      driver = webdriver.Firefox(
-        executable_path='webdrivers/geckodriver(win64,Jan2019).exe')
-      return driver
-    except:
-      pass
-
-    #after much trying, I could not get selenium to pass on chrome options
-    #to supress debug output from chromedriver being printed to console
-    options = webdriver.ChromeOptions()
-    options.add_argument("start-maximized")
-    #removes msg 'Chrome is being controlled by automated test software'
-    options.add_argument('disable-infobars')
-    
-    try:                    # chrome webdriver instance current at Jan2019
-      driver = webdriver.Chrome \
-        (options=options
-        ,executable_path='webdrivers/chromedriver(win64,Jan2019).exe'
-        #overwrites log each time driver starts
-        ,service_log_path='webdrivers/chromedriver.log'
-        )
-      return driver
-    except:
-      pass
-    
-    try:                    # chrome webdriver instance current at Jun2019
-      driver = webdriver.Chrome \
-        (options=options
-        ,executable_path='webdrivers/chromedriver(win32,25Jun2019).exe'
-        #overwrites log each time driver starts
-        ,service_log_path='webdrivers/chromedriver.log'
-        )
-      return driver
-    except:
-      pass    
-
-    return driver
-
-
-def add_brower_tab_with_security_warning_using_selenium() -> None:
-
-  # A warning message is output in the top browser window so the user
-  # knows the security settings used when Selenium opens a browser may
-  # be different from their normal settings. This is important because
-  # the user might be inclined to open a new tab and continue browsing
-  # while being unaware (no visible difference) that the settings differ.
-  #
-  # In Firefox the address bar looks different, but the user still
-  # wouldn't know the security settings are different.
-  #
-  # I first tried to do this with a simple 'javascript alert/confirm box'
-  # but the box disappeared after a short time, defeating the purpose.
-
-  if driver:
-    driver.execute_script(
-      '''
-      var win2 = window.open("")                           // blank window
-
-      win2.document.head.outerHTML =
-        ("<head>"
-        + "<title>README</title>"
-        +"</head>"
-        );
-
-      win2.document.body.outerHTML =
-        ("<body>"
-        + "<strong>"
-        +  "<h1>WARNING:</h1>"
-        +  "<p><em>This</em> browser window is probably using different"
-        +  " security settings than you normally use.</p>"
-        +  "<p>For your own safety please close it immediately after you"
-        +  " have reviewed the information from www.haveibeenpwned.com"
-        +  "<br>"
-        +  " (so you don't accidentally continue browsing using"
-        +  " different security settings than normal).</p>"
-        +  "<p>Have a good day and stay safe!</p>"
-        + "</strong>"
-        +"</body>"
-        );
-
-      '''
-    )
 
 
 def write_new_csv(filename, new_csv_list):
@@ -260,8 +329,8 @@ def get_csv_content(filename):
 
 def process_csv_content(csv_content) -> list:
 
-  global new_pwnage
   global pwnage_summary
+  global pwndObj
 
   newcsv = []
   for line in csv_content:
@@ -296,7 +365,9 @@ def process_csv_content(csv_content) -> list:
         pwnage_summary += \
           F'{email}  no new pwnage. (last was {new_last_pwnage_date})\n'
       else:
-        new_pwnage = True
+        pwndObj.new_pwnage = True
+        pwndObj.add_valid_email(email)
+
         pwnage_summary += \
           F'{email}  ****** DANGER, NEW PWNAGE FOUND ******\n' + \
            ' '*len(email) + '  (see output above for instructions!!!)\n'
@@ -310,15 +381,6 @@ def process_csv_content(csv_content) -> list:
              , '*'*76
              , sep = '\n'
              )
-
-        if not open_haveibeenpwned_using_selenium(email):
-          print( "*** The program wasn't able to open browser for you,"
-               ,F'*** Please search {email} in www.haveibeenpwned.com !!!'
-               , '*'*76
-               , sep = '\n'
-               )
-
-  add_brower_tab_with_security_warning_using_selenium()
           
   # returns a list (ready to be written to csv file by csv.writer)
   return newcsv
