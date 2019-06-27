@@ -49,11 +49,20 @@ pwnage_summary = '\n\n' + \
 l.basicConfig(format='%(levelname)s: %(message)s', level=l.INFO)
 
 #=========================================================================
-# CLASS for opening browser using selenium
+# CLASS SearchPwndAccountsInBrowser
 #=========================================================================
 
 class SearchPwndAccountsInBrowser:
-  
+  '''Stores a collection of email addresses and provides a method which
+     attempts to open a web browser to search the email addresses against
+     the database of pwned accounts at www.haveibeenpwned.com and display
+     the results.
+     
+     Abstracts the interaction with the browser and www.haveibeenpwned.com
+     
+     Encapsulates the collection of email addresses to check,
+     and a webdriver used to drive the webbrowser'''
+
   new_pwnage = False
   
   _driver = None
@@ -63,7 +72,7 @@ class SearchPwndAccountsInBrowser:
     pass
 
   def add_valid_email(s, valid_email) -> None:
-    '''add valid email to list of pwned accounts'''
+    '''add a valid email to the collection of pwned accounts'''
     assert(type(valid_email) == str)
 
     s.new_pwnage = True
@@ -73,15 +82,16 @@ class SearchPwndAccountsInBrowser:
     '''try to return Firefox or Chrome webdriver
     
        Note: If successful getting a *Chrome* WebDriver, there will be
-            an instance of 'chromedriver.exe' that remains open in the
-            task manager (Windows OS) even after python ends and the user
-            closes the browser window.
-            This happens because the variable 'driver' is declared as
-            global and is still in scope when python finishes.
-            
-            This was the only way to keep the (Chrome) browser window open
-             after the script had ended.
-             Firefox does not have this problem. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'''
+             an instance of 'chromedriver.exe' that remains open in the
+             task manager (in Windows) even after python ends and the user
+             closes the browser window.
+             This happens because the 'pwndObj' (which contains the
+             webdriver) is a global and is still in scope when python
+             finishes.
+             These instances remain in task manager until system restart.
+             This is sub-optimal, but is the only way to keep the browser
+             window open after the script has finished.
+             Firefox does not suffer the same problem.'''
 
     if s._driver:
       return s._driver
@@ -133,8 +143,9 @@ class SearchPwndAccountsInBrowser:
       return s._driver
 
 
-  def try_seach_pwnd_accounts_in_browser(s) -> None:
-    '''Try to open a web browser, to open www.haveibeenpwned.com,
+  def try_search_pwnd_accounts_in_browser(s) -> None:
+    '''Try to open a web browser,
+       to open www.haveibeenpwned.com,
        to search each pwned account,
        to show the details of the pwnage to the user.
        On failure, prompts user to search for themselves,
@@ -253,7 +264,7 @@ def main() -> None:
 
   write_new_csv(FILENAME, new_csv_list)
 
-  pwndObj.try_seach_pwnd_accounts_in_browser()
+  pwndObj.try_search_pwnd_accounts_in_browser()
 
   print(f'{pwnage_summary}')
 
