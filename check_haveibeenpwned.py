@@ -52,7 +52,7 @@ l.basicConfig(format='%(levelname)s: %(message)s', level=l.INFO)
 # CLASS for opening browser using selenium
 #=========================================================================
 
-class SearchPwndAccountInBrowser:
+class SearchPwndAccountsInBrowser:
   
   new_pwnage = False
   
@@ -62,19 +62,26 @@ class SearchPwndAccountInBrowser:
   def __init__(self):
     pass
 
-  def add_valid_email(self, valid_email) -> None:
+  def add_valid_email(s, valid_email) -> None:
+    '''add valid email to list of pwned accounts'''
     assert(type(valid_email) == str)
 
-    self._pwned_accounts.append(valid_email)
+    s.new_pwnage = True
+    s._pwned_accounts.append(valid_email)
 
   def get_driver(s) -> selenium.webdriver:
-    ''' Note: If successful getting a *Chrome* WebDriver, there will be
-        an instance of 'chromedriver.exe' that remains open in the task
-        manager (Windows OS) even after python ends and the user closes
-        the browser window. This happens because 'driver' is declared as
-        global and is still in scope when python finishes. This was the
-        only way to keep the (Chrome) browser window open after the
-        script had ended. Firefox does not have this problem.'''
+    '''try to return Firefox or Chrome webdriver
+    
+       Note: If successful getting a *Chrome* WebDriver, there will be
+            an instance of 'chromedriver.exe' that remains open in the
+            task manager (Windows OS) even after python ends and the user
+            closes the browser window.
+            This happens because the variable 'driver' is declared as
+            global and is still in scope when python finishes.
+            
+            This was the only way to keep the (Chrome) browser window open
+             after the script had ended.
+             Firefox does not have this problem. <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<'''
 
     if s._driver:
       return s._driver
@@ -82,7 +89,7 @@ class SearchPwndAccountInBrowser:
     
       # try firefox
 
-      try:                                    # firefox webdriver instance
+      try:
         s._driver = webdriver.Firefox(
           executable_path = 'webdrivers/geckodriver(win64,Jan2019).exe')
         return s._driver
@@ -90,18 +97,30 @@ class SearchPwndAccountInBrowser:
         pass
 
       # try chrome
+      # different chromedrivers work for different versions of Chrome
 
-      #after much trying, I could not get selenium to pass on chrome options
-      #to supress debug output from chromedriver being printed to console
+      # Could not get selenium to pass on chrome options to supress
+      # debug output from chromedriver being printed to console
+
       options = webdriver.ChromeOptions()
       options.add_argument("start-maximized")
-      #removes msg 'Chrome is being controlled by automated test software'
+      # remove msg 'Chrome is being controlled by automated test software'
       options.add_argument('disable-infobars')
       
-      #overwrites log each time driver starts
+      # log is overwriten each time driver starts
       service_log_path = 'webdrivers/chromedriver.log'
       
-      try:                  # chrome webdriver instance current at Jan2019
+      try:
+        s._driver = webdriver.Chrome \
+          (options          = options
+          ,executable_path  = 'webdrivers/chromedriver(win32,Jun2019).exe'
+          ,service_log_path = service_log_path
+          )
+        return s._driver
+      except:
+        pass
+
+      try:
         s._driver = webdriver.Chrome \
           (options          = options
           ,executable_path  = 'webdrivers/chromedriver(win64,Jan2019).exe'
@@ -111,39 +130,36 @@ class SearchPwndAccountInBrowser:
       except:
         pass
     
-      try:                  # chrome webdriver instance current at Jun2019
-        s._driver = webdriver.Chrome \
-          (options          = options
-          ,executable_path  = 'webdrivers/chromedriver(win32,Jun2019).exe'
-          ,service_log_path = service_log_path
-          )
-        return s._driver
-      except:
-        pass    
-
       return s._driver
 
 
   def try_seach_pwnd_accounts_in_browser(s) -> None:
-    
-    if (s.new_pwnage and s.get_driver()):
+    '''Try to open a web browser, to open www.haveibeenpwned.com,
+       to search each pwned account,
+       to show the details of the pwnage to the user.
+       On failure, prompts user to search for themselves,
+       then continue without error.
+    '''
+    if (s.new_pwnage):
       try:
+        if (not s.get_driver()):
+          raise Exception
       
-        last = len(s._pwned_accounts)
+        last = len(s._pwned_accounts) - 1
         
-        for i in range(last):
+        for i in range(last + 1):
           
           s._driver.get('https://haveibeenpwned.com/')
           assert 'Have I Been Pwned' in s._driver.title
 
-          elem = s._driver.find_element_by_id('Account')    # search field
-          elem.send_keys(s._pwned_accounts[i] + Keys.RETURN)
+          search_field = s._driver.find_element_by_id('Account')
+          search_field.send_keys(s._pwned_accounts[i] + Keys.RETURN)
 
           _elem = WebDriverWait(s._driver, 120).until(
             EC.presence_of_element_located((By.ID, 'breachDescription'))
           )
           
-          if i+1 != last:
+          if i != last:
             
             # JavaScript cannot control whether a new tab, vs window, gets
             # created. This behaviour is controlled by browser settings.
@@ -157,23 +173,23 @@ class SearchPwndAccountInBrowser:
             #s._driver.current_window_handle
             #s._driver.window_handles
         
-        s.add_brower_tab_with_security_warning()
+        s.add_brower_tab_or_window_with_security_warning()
         
         print("Browser should now show one tab/window per pwned account")
-    
-      except:
-        
-        print('*' * 76
-             ,"* The program wasn't able to complete searching for you"
-             ,"* Please search these acounts in www.haveibeenpwned.com"
-             ,"* " + "\n* ".join(s._pwned_accounts)
-             ,'*' * 76
-             ,sep = '\n'
-             ,flush = True
-             )
 
+      except:
+        print('*' * 76
+              ,"* ERROR:"
+              ,"* Couldn't complete opening a browser to search"
+              +" havibeenpwned.com for you."
+              ,"* Please search these acounts in www.haveibeenpwned.com :"
+              ,'* ' + '\n* '.join(s._pwned_accounts)
+              ,'*' * 76
+              ,sep = '\n'
+              ,flush = True
+              )
       
-  def add_brower_tab_with_security_warning(s) -> None:
+  def add_brower_tab_or_window_with_security_warning(s) -> None:
     '''Output a msg to a new tab/window warning the user not to use these
        window(s) for further browsing as the security settings are likely
        to be different than they normally use. (selenium opens the browser
@@ -227,9 +243,9 @@ class SearchPwndAccountInBrowser:
 def main() -> None:
 
   global pwndObj
-  pwndObj = SearchPwndAccountInBrowser()
+  pwndObj = SearchPwndAccountsInBrowser()
   
-  print(F'Checking all emails in {FILENAME} using haveibeenpwned.com')
+  print(f'Checking all emails in {FILENAME} using haveibeenpwned.com')
   
   csv_content = get_csv_content(FILENAME)
 
@@ -239,10 +255,10 @@ def main() -> None:
 
   pwndObj.try_seach_pwnd_accounts_in_browser()
 
-  print(F'{pwnage_summary}')
+  print(f'{pwnage_summary}')
 
   print('\nSCRIPT COMPLETED SUCCESSFULLY\n\n'
-       +('BUT NEW PWNAGE WAS DETECTED!!!\n' if pwndObj.new_pwnage else '') 
+       +('BUT NEW PWNAGE WAS DETECTED!!!\n' if pwndObj.new_pwnage else '')
        ,flush=True)
 
 
@@ -267,7 +283,7 @@ def get_csv_content(filename):
 
   if oldcsv == []:
     #blank csv file
-    print(F'The csv "{filename}" appears to be empty.\n'
+    print(f'The csv "{filename}" appears to be empty.\n'
            'Each line (of the csv file) should start with a valid email'
            ' address.\n'
            'Optionally followed by the last pawnage date'
@@ -275,7 +291,7 @@ def get_csv_content(filename):
            'Also Optional: first line exactly as in example below.\n'
            'Note: no spaces on any lines.\n'
            'example file:\n'
-          F'   {CSV_FIRST_ROW_STR}\n'
+          f'   {CSV_FIRST_ROW_STR}\n'
            '   example1@hotmail.com,2018-12-31\n'
            '   example2@hotmail.com\n'
            'Fix the file then try again.')
@@ -289,7 +305,7 @@ def get_csv_content(filename):
   # limit number of emails (lines)  (so we don't abuse haveibeenpwned.com)
   if len(oldcsv) > 20:
     print( 'WARNING: THIS PROGRAM WILL ONLY CHECK THE FIRST 20 EMAIL\n'
-          F'ADDRESSES FROM "{FILENAME}" (incl. blank/malformed lines)\n'
+          f'ADDRESSES FROM "{FILENAME}" (incl. blank/malformed lines)\n'
            'FURTHERMORE, IF YOU CONTINUE, THE EXCESS EMAIL ADDRESSES\n'
            'WILL BE DELETED FROM THE FILE.')
     try:
@@ -299,7 +315,7 @@ def get_csv_content(filename):
       else:
         raise SystemExit                        # drops through to except:
     except:
-      print(F'Exiting without editing the file.')
+      print(f'Exiting without editing the file.')
       raise SystemExit
 
   l.debug(f'csv file contents:\n{oldcsv}')
@@ -329,36 +345,36 @@ def process_csv_content(csv_content) -> list:
       continue
 
     elif len(line) > 2:
-      print(F'skipping ill formatted csv line (but still keeping it'
-            F' in the csv file):\n"{line}"')
+      print(f'skipping ill formatted csv line (but still keeping it'
+            f' in the csv file):\n"{line}"')
       newcsv.append(line)
       continue
 
     new_last_pwnage_date = process(email)
 
     if new_last_pwnage_date == None:
-      pwnage_summary += F'{email}  no pwnage ever.\n'
+      pwnage_summary += f'{email}  no pwnage ever.\n'
       newcsv.append([email])
     else:
       newcsv.append([email, new_last_pwnage_date])
 
       if new_last_pwnage_date == old_last_pwnage_date:
         pwnage_summary += \
-          F'{email}  no new pwnage. (last was {new_last_pwnage_date})\n'
+          f'{email}  no new pwnage. (last was {new_last_pwnage_date})\n'
       else:
-        pwndObj.new_pwnage = True
         pwndObj.add_valid_email(email)
 
         pwnage_summary += \
-          F'{email}  ****** DANGER, NEW PWNAGE FOUND ******\n' + \
+          f'{email}  ****** DANGER, NEW PWNAGE FOUND ******\n' + \
            ' '*len(email) + '  (see output above for instructions!!!)\n'
 
         print('*'*76
              , '* Oh no - NEW pwnage found!'
-             ,F'* Opening Browser to search {email} in haveibeenpwned.com'
+             ,f"* We will try to open a browser to search {email} in"
+             + " haveibeenpwned.com for you."
              , '* IMPORTANT:'
              , '* PLEASE CHANGE YOUR PASSWORD FOR THIS ACCOUNT ASAP'
-             , '* (AND ANY OTHER ACCOUNT YOU USED THE SAME PASSWORD)'
+             , '* (AND ANY OTHER ACCOUNT THAT USE THE SAME PASSWORD)'
              , '*'*76
              , sep = '\n'
              )
@@ -375,7 +391,7 @@ def process(email) -> str:
     most_recent_breach_date = \
       get_most_recent_breach_date(http_json_response)
     print( 'most_recent_breach_date ='
-          F' {most_recent_breach_date} (yyyy-mm-dd)')
+          f' {most_recent_breach_date} (yyyy-mm-dd)')
     return most_recent_breach_date
   else:
     # no pwnage found
@@ -395,7 +411,7 @@ def get_most_recent_breach_date(http_json_response) -> str:
   for breach in dict_of_json:
     breach_dates.append(breach['BreachDate'])
 
-  l.debug(F'all breach dates (sorted):\n{sorted(breach_dates)}')
+  l.debug(f'all breach dates (sorted):\n{sorted(breach_dates)}')
 
   return sorted(breach_dates)[-1]
 
@@ -413,7 +429,7 @@ def try_open_csv(filepath, mode='r') -> TextIOWrapper:
   try:
     fh = open(filepath, mode=mode, newline='')
   except FileNotFoundError:
-    print(F'The file "{filepath}" could not be found.'
+    print(f'The file "{filepath}" could not be found.'
            ' Please check you have included the file extension'
            ' and the file exists. Then try again.')
     input('press enter to exit')
@@ -442,7 +458,7 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
   (haveibeenpwned.com limits API access to once per 1500ms)
   '''
   assert(type(valid_email) == str)
-  print(F'querying haveibeenpwned.com regarding {valid_email}')
+  print(f'querying haveibeenpwned.com regarding {valid_email}')
 
   # haveibeenpwned.com limits API requests to one every 1500ms.
   time.sleep(3)
@@ -459,7 +475,7 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
 
     r = urllib.request.urlopen(req)
 
-    print(F'recieved HTTP response: {r.status} {r.reason}')     #ie 200 OK
+    print(f'recieved HTTP response: {r.status} {r.reason}')     #ie 200 OK
 
     # byte string
     data = r.read(200000)
@@ -470,8 +486,8 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
 
   # if 200 continue, if 404 then no pwnage, all else, raise error & exit
   except urllib.error.HTTPError as e:
-    l.debug(F'HTTP response code: {e.code}')
-    l.debug(F'HTTP response:\n{e.read()}')
+    l.debug(f'HTTP response code: {e.code}')
+    l.debug(f'HTTP response:\n{e.read()}')
     if e.code == 404:
       l.debug('404 hence, no pwnage found')
       return None                                        # no pwnage found
@@ -479,7 +495,7 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
       raise e
   
   except:
-    print(F'Error while trying to send HTTP GET request to "{url}".'
+    print(f'Error while trying to send HTTP GET request to "{url}".'
            ' Check internet connection and try again.')
     input('press enter to exit')
     raise SystemExit
@@ -495,7 +511,7 @@ def get_pwnage_fm_haveibeenpwned(valid_email) -> bytes:
     raise SystemExit
 
   l.debug("before returning HTTP response, type(data) = ", type(data))
-  l.debug(F'all data downloaded:\n{data}')
+  l.debug(f'all data downloaded:\n{data}')
 
   return data
 
