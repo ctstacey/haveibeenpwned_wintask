@@ -161,26 +161,7 @@ class SearchPwndAccountInBrowser:
         
         print("Browser should now show one tab/window per pwned account")
     
-        a = 1/0
-
       except:
-        
-        #re-write this code so it creates
-        #* account1@hotmail.com
-        #* account2@gmail.com
-
-        #def prefix_lines(pre, iterable):
-        #  it = iter(iterable)
-        #  r = []
-        #  for x in iterable:
-        #    r."* " +
-        #  yield 
-        #  yield next(it)
-        #  for x in it:
-        #      yield delimiter
-        #      yield x
-
-        #s._pwned_accounts.
         
         print('*' * 76
              ,"* The program wasn't able to complete searching for you"
@@ -261,7 +242,7 @@ def main() -> None:
   print(F'{pwnage_summary}')
 
   print('\nSCRIPT COMPLETED SUCCESSFULLY\n\n'
-       +'BUT NEW PWNAGE WAS DETECTED!!!\n' if pwndObj.new_pwnage else '' 
+       +('BUT NEW PWNAGE WAS DETECTED!!!\n' if pwndObj.new_pwnage else '') 
        ,flush=True)
 
 
